@@ -1,6 +1,10 @@
 #ifndef _GUISLICE_CONFIG_H_
 #define _GUISLICE_CONFIG_H_
 
+#define USER_CONFIG_LOADED
+#define USER_CONFIG_INC_FILE
+#define USER_CONFIG_INC_FNAME "../configs/ard-tftespi-default-urtouch.h"
+
 // =======================================================================
 // GUIslice library (user configuration) selection by device
 // - Calvin Hass

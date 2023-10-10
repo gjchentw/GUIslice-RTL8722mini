@@ -55,7 +55,13 @@
 #include <SPI.h>
 
 
-#if defined(DRV_TOUCH_ADA_STMPE610)
+#if defined(DRV_TOUCH_URTOUCH)
+  #if defined(DRV_TOUCH_URTOUCH_OLD)
+    #include <UTouch.h> // Select old version of URTouch
+  #else
+    #include <URTouch.h>
+  #endif
+#elif defined(DRV_TOUCH_ADA_STMPE610)
   #include <SPI.h>
   #include <Wire.h>
   #include "Adafruit_STMPE610.h"
@@ -71,7 +77,7 @@
   #include <XPT2046_touch.h>
 #elif defined(DRV_TOUCH_XPT2046_PS)
   #include <XPT2046_Touchscreen.h>
-#elif defined(DRV_TOUCH_HANDLER)
+#elif defined()
   #include <GUIslice_th.h>
 #endif
 
@@ -110,7 +116,16 @@ TFT_eSPI m_disp = TFT_eSPI();
 #endif
 
 // ------------------------------------------------------------------------
-#if defined(DRV_TOUCH_ADA_STMPE610)
+#if defined(DRV_TOUCH_URTOUCH)
+  #define DRV_TOUCH_TYPE_EXTERNAL
+  #if defined(DRV_TOUCH_URTOUCH_OLD)
+    const char* m_acDrvTouch = "URTOUCH_OLD";
+    UTouch m_touch(DRV_TOUCH_URTOUCH_INIT);
+  #else
+    const char* m_acDrvTouch = "URTOUCH";
+    URTouch m_touch(DRV_TOUCH_URTOUCH_INIT);
+  #endif
+#elif defined(DRV_TOUCH_ADA_STMPE610)
   #if (ADATOUCH_I2C_HW) // Use I2C
     const char* m_acDrvTouch = "STMPE610(I2C-HW)";
     Adafruit_STMPE610 m_touch = Adafruit_STMPE610();
@@ -1610,7 +1625,13 @@ bool gslc_TDrvInitTouch(gslc_tsGui* pGui,const char* acDev) {
     pGui->bTouchRemapYX = false;
   #endif
 
-  #if defined(DRV_TOUCH_ADA_STMPE610)
+  #if defined(DRV_TOUCH_URTOUCH)
+    m_touch.InitTouch();
+    m_touch.setPrecision(PREC_MEDIUM);
+    // Disable touch remapping since URTouch handles it
+    gslc_SetTouchRemapEn(pGui, false);
+    return true;
+  #elif defined(DRV_TOUCH_ADA_STMPE610)
     #if (ADATOUCH_I2C_HW)
     if (!m_touch.begin(ADATOUCH_I2C_ADDR)) {
     #else
@@ -1695,7 +1716,51 @@ bool gslc_TDrvGetTouch(gslc_tsGui* pGui,int16_t* pnX,int16_t* pnY,uint16_t* pnPr
   nDispOutMaxY = pGui->nDisp0H-1;
 
   // ----------------------------------------------------------------
-  #if defined(DRV_TOUCH_ADA_STMPE610)
+  #if defined(DRV_TOUCH_URTOUCH)
+
+    // Note that we rely on URTouch's calibration
+    // - This is detected by URTouch / URTouch_Calibration
+    // - The calibration settings are stored in URTouch/URTouchCD.h
+
+    int16_t   nRawX,nRawY;
+    uint16_t  nRawPress = 0;
+    bool bTouchOk = true;
+
+    if (!m_touch.dataAvailable()) {
+      bTouchOk = false;
+    }
+
+    if (bTouchOk) {
+      m_touch.read();
+      nRawX = m_touch.getX();
+      nRawY = m_touch.getY();
+      if ((nRawX == -1) || (nRawY == -1)) {
+        bTouchOk = false;
+      }
+    }
+
+    if (bTouchOk) {
+      nRawPress = 255; // Dummy non-zero value
+      m_nLastRawX = nRawX;
+      m_nLastRawY = nRawY;
+      m_nLastRawPress = nRawPress;
+      m_bLastTouched = true;
+      bValid = true;
+    } else {
+      if (!m_bLastTouched) {
+        // Wasn't touched before; do nothing
+      }
+      else {
+        // Touch release
+        // Indicate old coordinate but with pressure=0
+        m_nLastRawPress = 0;
+        m_bLastTouched = false;
+        bValid = true;
+      }
+    }
+
+  // ----------------------------------------------------------------
+  #elif defined(DRV_TOUCH_ADA_STMPE610)
 
   uint16_t  nRawX,nRawY;
   uint8_t   nRawPress;
