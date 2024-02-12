@@ -77,7 +77,7 @@
   #include <XPT2046_touch.h>
 #elif defined(DRV_TOUCH_XPT2046_PS)
   #include <XPT2046_Touchscreen.h>
-#elif defined()
+#elif defined(DRV_TOUCH_HANDLER)
   #include <GUIslice_th.h>
 #endif
 
